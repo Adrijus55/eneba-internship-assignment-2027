@@ -8,6 +8,7 @@ const thread = '01a2080b-f173-7f03-b350-1687d7a352c0';
 const internalItems = new Set(['CommandExecution', 'McpToolCall', 'Reasoning',
   'FileChange', 'WebSearch', 'ImageView']);
 const questionTools = new Set(['request_user_input', 'request_user_input_async']);
+const internalExtensions = new Set(['web.search', 'clock.sleep']);
 
 function requireText(value) {
   if (typeof value !== 'string') throw new Error('Expected verbatim text. Review the source schema.');
@@ -66,8 +67,8 @@ function collect(records) {
       const i = p.item;
       if (['UserMessage', 'AgentMessage', 'Plan'].includes(i.type)) {
         add(i.id, i.type === 'UserMessage' ? 'User' : 'Assistant', messageBody(i));
-      } else if (!internalItems.has(i.type) && !(i.type === 'Extension' && i.kind === 'web.search')) {
-        throw new Error('Review an unrecognized chat item before exporting: ' + i.type);
+      } else if (!internalItems.has(i.type) && !(i.type === 'Extension' && internalExtensions.has(i.kind))) {
+        throw new Error('Review an unrecognized chat item before exporting: ' + (i.kind ?? i.type));
       }
       continue;
     }
