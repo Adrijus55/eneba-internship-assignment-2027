@@ -1,6 +1,6 @@
 # Eneba Internship Assignment 2027
 
-A game-key marketplace built in stages. The first page reads a product name from PostgreSQL through a Laravel JSON endpoint and displays it in React.
+A game-key marketplace built in stages. Visitors can compare seller offers, save a cart, register and sign in. Laravel protects the checkout page and API with its session guard. Signed-in requests currently reach a placeholder.
 
 ## Run the first page
 
@@ -17,6 +17,11 @@ Use the repository's Render Blueprint with the free plan. In Render's secret set
 
 Open the public address in a private window. Change the seeded product's name in the dedicated Neon database, refresh the browser and check the displayed name. Restore the demo name after the check.
 
+## Verify authentication
+
+With the app running, set `STORE_TEST_URL` to its base URL and run `node --test scripts/auth.test.mjs`. This HTTP test registers one generated `@example.test` account, exercises cookie sessions and CSRF protection, and verifies direct checkout access. It prints the disposable account email for cleanup.
+
 ## Export this assignment chat
+
 
 From the repository root, run `node scripts/export-chat.mjs "path/to/assignment-session.jsonl"` with Node 22 or later. Use `--finish-turn` as the last argument during an active turn to refresh the export when that turn ends. The script checks the source chat ID and saves `AI_CHAT_HISTORY.md` locally. An unknown completed item stops the export for review. Review the full private file for sensitive content before providing the transcript to the evaluator.

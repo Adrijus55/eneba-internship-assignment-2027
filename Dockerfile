@@ -5,6 +5,7 @@ COPY frontend/ ./
 RUN pnpm install --frozen-lockfile && pnpm run build
 
 FROM php:8.4-apache
+ENV SESSION_SECURE_COOKIE=true
 RUN apt-get update && apt-get install -y --no-install-recommends libpq-dev libonig-dev unzip \
     && docker-php-ext-install pdo_pgsql mbstring \
     && rm -rf /var/lib/apt/lists/*

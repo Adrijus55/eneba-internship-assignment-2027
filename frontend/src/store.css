@@ -25,3 +25,8 @@ button {
   cursor: pointer;
 }
 button:disabled { opacity: .7; cursor: default; }
+nav, .account-menu { align-items: center; flex-wrap: wrap; }
+.account-menu { display: flex; gap: .75rem; }
+.account-form { display: grid; gap: 1rem; max-width: 22rem; }
+.account-form label { display: grid; gap: .35rem; }
+.account-form input { padding: .7rem; border-radius: .3rem; font: inherit; }

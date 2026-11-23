@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { createRoot } from 'react-dom/client';
 import './store.css';
+import { AccountForm, AccountMenu } from './account';
 
 type Product = { id: number; name: string };
 type Offer = {
@@ -121,6 +122,8 @@ function Store() {
   const [storageError, setStorageError] = useState(false);
   const product = /^\/products\/([0-9]+)\/?$/.exec(location.pathname);
   const isCart = /^\/cart\/?$/.test(location.pathname);
+  const path = location.pathname.replace(/\/$/, '');
+  const isAccount = path === '/login' || path === '/register';
 
   function saveCart(next: number[]) {
     try {
@@ -136,13 +139,16 @@ function Store() {
     <nav aria-label="Store">
       <a href="/">Catalog</a>
       <a href="/cart">Cart ({ids.length})</a>
+      <AccountMenu />
     </nav>
     {storageError && <p role="alert">Your browser could not save the cart.</p>}
     {isCart && <Cart ids={ids} remove={id => saveCart(ids.filter(item => item !== id))} />}
     {product && <Details id={product[1]} cart={ids} add={id => {
       if (!ids.includes(id)) saveCart([...ids, id]);
     }} />}
-    {!product && !isCart && <Catalog />}
+    {isAccount && <AccountForm register={path === '/register'} />}
+    {path === '/checkout' && <><h1>Checkout</h1><p>Checkout is not available yet.</p></>}
+    {path === '' && <Catalog />}
   </main>;
 }
 
