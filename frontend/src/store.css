@@ -8,3 +8,20 @@ main { max-width: 54rem; margin: 4rem auto; padding: 0 1.25rem; }
 h1 { font-size: 2.5rem; }
 ul { list-style: none; padding: 0; }
 li { padding: 1.25rem; background: #432467; border-radius: .4rem; }
+a { color: #fff; text-underline-offset: .2em; }
+nav { display: flex; justify-content: space-between; gap: 1rem; }
+ul { display: grid; gap: .75rem; }
+.catalog { grid-template-columns: repeat(auto-fit, minmax(12rem, 1fr)); }
+.catalog a { display: block; min-height: 2rem; }
+.offer { display: flex; flex-wrap: wrap; align-items: center; gap: 1rem; }
+.offer div { flex: 1 1 12rem; }
+button {
+  border: 0;
+  border-radius: .3rem;
+  padding: .65rem .9rem;
+  background: #fff;
+  color: #241340;
+  font: inherit;
+  cursor: pointer;
+}
+button:disabled { opacity: .7; cursor: default; }
