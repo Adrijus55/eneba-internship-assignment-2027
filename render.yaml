@@ -3,6 +3,7 @@ services:
     name: eneba-internship-assignment-2027
     runtime: docker
     plan: free
+    region: frankfurt
     healthCheckPath: /up
     envVars:
       - key: PORT

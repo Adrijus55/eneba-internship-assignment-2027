@@ -35,6 +35,15 @@ function collect(records) {
   const entries = [];
   const seen = new Map();
   const pending = new Map();
+  // Some Codex versions also record the exact text shown in the question card.
+  const questionCards = new Map();
+  for (const { type, payload } of records) {
+    const item = payload.item;
+    if (type === 'event_msg' && payload.type === 'item_completed' &&
+        item.type === 'AgentMessage' && item.questions) {
+      questionCards.set(item.id, messageBody(item));
+    }
+  }
   let activeTurn;
   let completedTurn;
   function add(id, role, body) {
@@ -65,7 +74,7 @@ function collect(records) {
     if (type !== 'response_item') continue;
     if (p.type === 'function_call' && questionTools.has(p.name)) {
       const { questions } = JSON.parse(p.arguments);
-      add(p.call_id, 'Assistant', questions.map(questionBody).join('\n\n'));
+      add(p.call_id, 'Assistant', questionCards.get(p.call_id) ?? questions.map(questionBody).join('\n\n'));
       pending.set(p.call_id, questions);
     } else if (p.type === 'function_call_output' && pending.has(p.call_id)) {
       const result = JSON.parse(p.output);

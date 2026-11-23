@@ -35,6 +35,17 @@ test('export preserves exact bodies, is repeatable, and reports schema changes',
   assert.throws(run, /unrecognized chat item/);
   assert.deepEqual(await readFile(output), Buffer.from(expected));
   records.pop();
+  const question = { title: 'Where?', options: ['Here', 'Elsewhere'] };
+  const card = 'Where?\n- Here\n- Elsewhere';
+  records.push({ type: 'response_item', payload: {
+    type: 'function_call', name: 'request_user_input_async', call_id: 'card',
+    arguments: JSON.stringify({ questions: [question] }),
+  } });
+  records.push(item({ type: 'AgentMessage', id: 'card', questions: [question],
+    content: [{ type: 'Text', text: card }] }));
+  await save();
+  run();
+  assert.equal(await readFile(output, 'utf8'), expected + '\n## Assistant\n\n' + card + '\n');
   const example = 'ghp_' + 'x'.repeat(24);
   records.push(item({ type: 'AgentMessage', id: 'three', content: [{ type: 'Text', text: example }] }));
   await save();
