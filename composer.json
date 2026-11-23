@@ -1,0 +1,19 @@
+{
+    "name": "eneba-assignment/marketplace",
+    "description": "A small game-key marketplace for the Eneba internship assignment.",
+    "type": "project",
+    "autoload": {
+        "psr-4": {
+            "App\\": "app/"
+        }
+    },
+    "require": {
+        "php": "^8.4",
+        "ext-pdo": "*",
+        "ext-pdo_pgsql": "*",
+        "laravel/framework": "^13.0"
+    },
+    "config": {
+        "sort-packages": true
+    }
+}

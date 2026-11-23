@@ -1,0 +1,25 @@
+services:
+  - type: web
+    name: eneba-internship-assignment-2027
+    runtime: docker
+    plan: free
+    healthCheckPath: /up
+    envVars:
+      - key: PORT
+        value: "80"
+      - key: APP_ENV
+        value: production
+      - key: APP_DEBUG
+        value: "false"
+      - key: APP_KEY
+        sync: false
+      - key: DB_CONNECTION
+        value: pgsql
+      - key: DB_URL
+        sync: false
+      - key: SESSION_DRIVER
+        value: file
+      - key: CACHE_STORE
+        value: file
+      - key: LOG_CHANNEL
+        value: stderr
