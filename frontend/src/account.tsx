@@ -3,7 +3,7 @@ import { useEffect, useState, type FormEvent } from 'react';
 type User = { id: number; email: string };
 type Session = { user: User | null; csrfToken: string };
 
-async function readSession(): Promise<Session> {
+export async function readSession(): Promise<Session> {
   const response = await fetch('/api/session', { headers: { Accept: 'application/json' }, cache: 'no-store' });
   if (!response.ok) throw new Error('Could not load your session. Refresh and try again.');
   return response.json();
@@ -43,7 +43,7 @@ export function AccountMenu() {
   }
 
   return <div className="account-menu">
-    {user && <><span>{user.email}</span><button onClick={logout}>Sign out</button></>}
+    {user && <><a href="/orders">Order history</a><span>{user.email}</span><button onClick={logout}>Sign out</button></>}
     {user === null && <a href="/login">Sign in</a>}
     {error && <span role="alert">{error}</span>}
   </div>;

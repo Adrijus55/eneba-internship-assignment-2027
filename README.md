@@ -1,6 +1,6 @@
 # Eneba Internship Assignment 2027
 
-A game-key marketplace built in stages. Visitors can compare seller offers, save a cart, register and sign in. Laravel protects the checkout page and API with its session guard. Signed-in requests currently reach a placeholder.
+A game-key marketplace built in stages. Visitors can compare seller offers, save a cart, and sign in to make a simulated purchase. Each receipt contains the purchased demo keys and is accessible from the buyer's order history.
 
 ## Run the first page
 
@@ -20,6 +20,10 @@ Open the public address in a private window. Change the seeded product's name in
 ## Verify authentication
 
 With the app running, set `STORE_TEST_URL` to its base URL and run `node --test scripts/auth.test.mjs`. This HTTP test registers one generated `@example.test` account, exercises cookie sessions and CSRF protection, and verifies direct checkout access. It prints the disposable account email for cleanup.
+
+## Verify checkout
+
+Run two PHP workers on different ports against the same freshly migrated disposable PostgreSQL database. Set `CHECKOUT_TEST_URL` and `CHECKOUT_TEST_SECOND_URL` to their base URLs and run `node --test scripts/checkout.test.mjs`. This test consumes demo stock and covers simultaneous retries, competition for the last key, rollback, price changes, and private receipts.
 
 ## Export this assignment chat
 

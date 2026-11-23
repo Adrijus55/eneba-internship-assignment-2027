@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { createRoot } from 'react-dom/client';
 import './store.css';
 import { AccountForm, AccountMenu } from './account';
+import { euros, Orders, Payment } from './orders';
 
 type Product = { id: number; name: string };
 type Offer = {
@@ -16,7 +17,6 @@ type ProductDetails = Product & { description: string; offers: Offer[] };
 type CartOffer = { id: number; offer: Offer | null };
 
 const cartKey = 'eneba-cart-offer-ids';
-const euros = new Intl.NumberFormat('en-IE', { style: 'currency', currency: 'EUR' });
 
 async function readJson<T>(url: string, signal: AbortSignal): Promise<T> {
   const response = await fetch(url, { signal, headers: { Accept: 'application/json' } });
@@ -91,7 +91,7 @@ function Details({ id, cart, add }: { id: string; cart: number[]; add: (id: numb
   </>;
 }
 
-function Cart({ ids, remove }: { ids: number[]; remove: (id: number) => void }) {
+function Cart({ ids, remove, checkout = false }: { ids: number[]; remove: (id: number) => void; checkout?: boolean }) {
   const { data: selections, error } = useData(signal => Promise.all(ids.map(async id => {
     const response = await fetch('/api/offers/' + id, { signal, headers: { Accept: 'application/json' } });
     if (response.status === 404) return { id, offer: null };
@@ -100,7 +100,7 @@ function Cart({ ids, remove }: { ids: number[]; remove: (id: number) => void }) 
   })), [ids]);
 
   return <>
-    <h1>Cart</h1>
+    <h1>{checkout ? 'Checkout' : 'Cart'}</h1>
     {ids.length === 0 && <p>Your cart is empty.</p>}
     {ids.length > 0 && error && <p role="alert">{error}</p>}
     {ids.length > 0 && !error && !selections && <p role="status">Loading cart…</p>}
@@ -111,9 +111,15 @@ function Cart({ ids, remove }: { ids: number[]; remove: (id: number) => void }) 
           <br />{offer.seller_name}{offer.available_keys === 0 && ' · Sold out'}
         </> : 'This offer is no longer available.'}</div>
         {offer && <span>{euros.format(offer.price_cents / 100)}</span>}
-        <button onClick={() => remove(id)}>Remove</button>
+        {!checkout && <button onClick={() => remove(id)}>Remove</button>}
       </li>)}
     </ul>}
+    {!error && selections && ids.length > 0 && selections.length === ids.length && selections.every(row => row.offer) &&
+      (checkout ? <Payment items={selections.map(({ offer }) => ({ offer_id: offer!.id, price_cents: offer!.price_cents }))}
+        complete={id => {
+          localStorage.removeItem(cartKey);
+          location.assign('/orders/' + id);
+        }} /> : <a href="/checkout">Checkout</a>)}
   </>;
 }
 
@@ -147,7 +153,8 @@ function Store() {
       if (!ids.includes(id)) saveCart([...ids, id]);
     }} />}
     {isAccount && <AccountForm register={path === '/register'} />}
-    {path === '/checkout' && <><h1>Checkout</h1><p>Checkout is not available yet.</p></>}
+    {path === '/checkout' && <Cart ids={ids} checkout remove={() => {}} />}
+    {(path === '/orders' || path.startsWith('/orders/')) && <Orders id={path.split('/')[2]} />}
     {path === '' && <Catalog />}
   </main>;
 }

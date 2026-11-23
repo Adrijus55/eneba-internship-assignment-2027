@@ -40,7 +40,7 @@ test('session lifecycle, CSRF and checkout access', { skip: !base }, async () =>
   assert.notEqual(session.csrfToken,csrf);
   csrf = session.csrfToken;
   assert.equal((await (await request('/api/session','GET',undefined,false,guestJar)).json()).user,null);
-  assert.equal((await request('/api/checkout','POST')).status,501);
+  assert.equal((await request('/api/checkout','POST')).status,422);
   assert.equal((await request('/api/logout','POST',undefined,false)).status,419);
   assert.equal((await (await request('/api/session')).json()).user.email,email);
   const oldJar = new Map(cookies);
