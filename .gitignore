@@ -1,0 +1,11 @@
+/AI_CHAT_HISTORY.md
+/AI_CHAT_HISTORY.md.*.tmp
+*.jsonl
+/assignment/*.pdf
+.env
+.env.*
+!.env.example
+node_modules/
+vendor/
+/public/build/
+/.local/
