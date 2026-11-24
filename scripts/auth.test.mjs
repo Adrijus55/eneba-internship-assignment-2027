@@ -24,6 +24,9 @@ test('session lifecycle, CSRF and checkout access', { skip: !base }, async () =>
   const initial = await guest.json();
   csrf = initial.csrfToken;
   assert.equal(initial.user, null);
+  const checkoutPage = await fetch(base + '/checkout', { redirect: 'manual' });
+  assert.equal(checkoutPage.status, 302);
+  assert.equal(new URL(checkoutPage.headers.get('location'), base).href, new URL('/login', base).href);
   assert.equal((await request('/api/checkout')).status, 401);
   assert.equal((await request('/api/checkout','POST')).status, 401);
   const credentials = { email, password };

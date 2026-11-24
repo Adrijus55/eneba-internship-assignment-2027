@@ -1,10 +1,11 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { createRoot } from 'react-dom/client';
 import './store.css';
 import { Catalog, Home, Search } from './catalog';
 import { readJson, useData } from './data';
 import { AccountForm, AccountMenu } from './account';
 import { euros, Orders, Payment } from './orders';
+import { cartKey, loadCart } from './cart';
 
 type Product = { id: number; name: string };
 type Offer = {
@@ -17,18 +18,6 @@ type Offer = {
 };
 type ProductDetails = Product & { description: string; platform: string; region: string; offers: Offer[] };
 type CartOffer = { id: number; offer: Offer | null };
-
-const cartKey = 'eneba-cart-offer-ids';
-
-function loadCart(): number[] {
-  try {
-    const ids: unknown = JSON.parse(localStorage.getItem(cartKey) ?? '[]');
-    if (!Array.isArray(ids)) return [];
-    return [...new Set(ids.filter(id => Number.isSafeInteger(id) && id > 0))];
-  } catch {
-    return [];
-  }
-}
 
 function Details({ id, cart, add }: { id: string; cart: number[]; add: (id: number) => void }) {
   const { data: product, error } = useData(signal => readJson<ProductDetails>('/api/products/' + id, signal), [id]);
@@ -60,6 +49,8 @@ function Cart({ ids, remove, checkout = false }: { ids: number[]; remove: (id: n
     if (!response.ok) throw new Error('Could not load the cart. Refresh to try again.');
     return { id, offer: await response.json() as Offer };
   })), [ids]);
+  const ready = !error && ids.length > 0 && selections?.length === ids.length && selections.every(row => ids.includes(row.id));
+  const available = selections?.every(row => row.offer && row.offer.available_keys > 0);
 
   return <>
     <h1>{checkout ? 'Checkout' : 'Cart'}</h1>
@@ -76,12 +67,12 @@ function Cart({ ids, remove, checkout = false }: { ids: number[]; remove: (id: n
         {!checkout && <button onClick={() => remove(id)}>Remove</button>}
       </li>)}
     </ul>}
-    {!error && selections && ids.length > 0 && selections.length === ids.length && selections.every(row => row.offer) &&
-      (checkout ? <Payment items={selections.map(({ offer }) => ({ offer_id: offer!.id, price_cents: offer!.price_cents }))}
-        complete={id => {
-          localStorage.removeItem(cartKey);
-          location.assign('/orders/' + id);
-        }} /> : <a href="/checkout">Checkout</a>)}
+    {ready && !available && <p>Remove unavailable offers from <a href="/cart">your cart</a> to continue.
+      {' '}Already confirmed a purchase? <a href="/orders">View order history</a>.</p>}
+    {ready && !checkout && available && <a href="/checkout">Checkout</a>}
+    {ready && checkout && selections.every(row => row.offer) &&
+      <Payment key={ids.join(',')} available={!!available}
+        items={selections.map(({ offer }) => ({ offer_id: offer!.id, price_cents: offer!.price_cents }))} />}
   </>;
 }
 
@@ -92,6 +83,21 @@ function Store() {
   const isCart = /^\/cart\/?$/.test(location.pathname);
   const path = location.pathname.replace(/\/$/, '');
   const isAccount = path === '/login' || path === '/register';
+
+  useEffect(() => {
+    function sync(event: StorageEvent) {
+      if (event.key === cartKey || event.key === null) setIds(loadCart());
+    }
+    function restore(event: PageTransitionEvent) {
+      if (event.persisted) setIds(loadCart());
+    }
+    window.addEventListener('storage', sync);
+    window.addEventListener('pageshow', restore);
+    return () => {
+      window.removeEventListener('storage', sync);
+      window.removeEventListener('pageshow', restore);
+    };
+  }, []);
 
   function saveCart(next: number[]) {
     try {

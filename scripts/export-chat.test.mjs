@@ -21,6 +21,7 @@ test('export preserves exact bodies, is repeatable, and reports schema changes',
     { type: 'session_meta', payload: { id: '01a2080b-f173-7f03-b350-1687d7a352c0' } },
     message, message,
     item({ type: 'Reasoning', id: 'private' }),
+    item({ type: 'ContextCompaction', id: 'context-only' }),
     item({ type: 'Plan', id: 'two', text: 'Plan\n' }),
   ];
   const save = () => writeFile(input, records.map(v => JSON.stringify(v)).join('\n'));

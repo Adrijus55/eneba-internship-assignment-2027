@@ -1,5 +1,7 @@
 import { useEffect, useState } from 'react';
 import { readSession } from './account';
+import { cartKey, loadCart } from './cart';
+import { useData } from './data';
 
 type Item = { offer_id: number; price_cents: number };
 type Attempt = { request_id: string; items: Item[] };
@@ -8,42 +10,67 @@ type Receipt = { id: number; items: { product_name: string; seller_name: string;
 
 export const euros = new Intl.NumberFormat('en-IE', { style: 'currency', currency: 'EUR' });
 
-export function Payment({ items, complete }: { items: Item[]; complete: (id: number) => void }) {
+export function Payment({ items, available }: { items: Item[]; available: boolean }) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
+  const sorted = [...items].sort((a,b) => a.offer_id - b.offer_id);
+  const selection = sorted.map(item => item.offer_id).join(',');
+  const { data: payment, error: loadError } = useData(async () => {
+    const session = await readSession();
+    if (!session.user) { location.assign('/login'); return; }
+    const slot = 'eneba-purchase-' + session.user.id + '-' + selection;
+    return { slot, token: session.csrfToken, pending: localStorage.getItem(slot) !== null };
+  }, [selection, available]);
+
+  async function confirm(slot: string, token: string) {
+    // Another tab may have finished this cart while this tab was waiting.
+    if (loadCart().sort((a,b) => a - b).join(',') !== selection) {
+      throw new Error('Your cart changed. Review it before confirming.');
+    }
+    const saved = localStorage.getItem(slot);
+    if (!available && !saved) throw new Error('This offer is unavailable. Review your cart.');
+    const attempt: Attempt = saved ? JSON.parse(saved) : { request_id: crypto.randomUUID(), items: sorted };
+    localStorage.setItem(slot, JSON.stringify(attempt));
+    let response: Response;
+    try {
+      response = await fetch('/api/checkout', {
+        method: 'POST', headers: { Accept: 'application/json', 'Content-Type': 'application/json', 'X-CSRF-TOKEN': token },
+        body: JSON.stringify(attempt),
+      });
+    } catch {
+      throw new Error('The store did not return a receipt. Retry this purchase or check your order history.');
+    }
+    if (response.status === 401) { location.assign('/login'); return; }
+    if (response.status === 419) throw new Error('Your session changed. Refresh before trying again.');
+    if (response.status === 409) {
+      localStorage.removeItem(slot);
+      throw new Error((await response.json()).message + ' Refresh before trying again.');
+    }
+    if (!response.ok) throw new Error('Could not confirm the purchase. Please try again.');
+    const { order_id } = await response.json();
+    const remaining = loadCart().filter(id => !sorted.some(item => item.offer_id === id));
+    localStorage.setItem(cartKey, JSON.stringify(remaining));
+    localStorage.removeItem(slot);
+    location.assign('/orders/' + order_id);
+  }
+
   async function pay() {
-    if (busy) return;
+    if (busy || !payment) return;
     setBusy(true);
     setError('');
     try {
-      const session = await readSession();
-      if (!session.user) { location.assign('/login'); return; }
-      const sorted = [...items].sort((a,b) => a.offer_id - b.offer_id);
-      const slot = 'eneba-purchase-' + session.user.id + '-' + sorted.map(item => item.offer_id).join(',');
-      const saved = localStorage.getItem(slot);
-      const attempt: Attempt = saved ? JSON.parse(saved) : { request_id: crypto.randomUUID(), items: sorted };
-      localStorage.setItem(slot, JSON.stringify(attempt));
-      const response = await fetch('/api/checkout', {
-        method: 'POST', headers: { Accept: 'application/json', 'Content-Type': 'application/json', 'X-CSRF-TOKEN': session.csrfToken },
-        body: JSON.stringify(attempt),
-      });
-      if (response.status === 401) { location.assign('/login'); return; }
-      if (response.status === 409) {
-        localStorage.removeItem(slot);
-        throw new Error((await response.json()).message + ' Refresh before trying again.');
-      }
-      if (!response.ok) throw new Error('Could not confirm the purchase. Please try again.');
-      const { order_id } = await response.json();
-      complete(order_id);
-      localStorage.removeItem(slot);
+      await navigator.locks.request('eneba-cart-checkout', () => confirm(payment.slot, payment.token));
     } catch (failure) {
       setError(failure instanceof Error ? failure.message : 'Please try again.');
       setBusy(false);
     }
   }
+  if (loadError) return <p role="alert">{loadError}</p>;
+  if (!payment) return <p role="status">Checking purchase…</p>;
+  if (!available && !payment.pending) return null;
   return <>
-    <p>Total <strong>{euros.format(items.reduce((sum, item) => sum + item.price_cents, 0) / 100)}</strong></p>
-    <button disabled={busy} onClick={pay}>Confirm simulated purchase</button>
+    {available && <p>Total <strong>{euros.format(items.reduce((sum, item) => sum + item.price_cents, 0) / 100)}</strong></p>}
+    <button disabled={busy} onClick={pay}>{available ? 'Confirm simulated purchase' : 'Recover previous receipt'}</button>
     {error && <p role="alert">{error}</p>}
   </>;
 }

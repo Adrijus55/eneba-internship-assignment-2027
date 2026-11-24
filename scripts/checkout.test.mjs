@@ -66,3 +66,74 @@ test('atomic checkout, concurrent retries, last-key contention and receipt owner
   assert.equal(await stock(cheap.offer_id),2);
   assert.equal((await a.call('orders')).data.length,before);
 });
+
+test('catalog prices follow remaining stock and only the buyer receives keys', {skip: !first || !second}, async () => {
+  const owner = await buyer(first);
+  const observer = await buyer(second);
+  async function publicData(path) {
+    const response = await fetch(first + '/api/' + path, {headers: {Accept: 'application/json'}});
+    assert.equal(response.status, 200, path);
+    const data = await response.json();
+    assert.ok(!/DEMO-|"(?:code|digital_key_id)"\s*:/.test(JSON.stringify(data)), 'Unexpected key data in ' + path);
+    return data;
+  }
+  const path = 'products/2';
+  const product = await publicData(path);
+  const [cheap, expensive] = product.offers;
+  const ranked = () => publicData('products?sort=price_asc');
+  const position = rows => rows.findIndex(row => row.id === product.id);
+  const before = await ranked();
+  assert.equal(before[position(before)].price_cents, cheap.price_cents);
+
+  async function sellOut(offer) {
+    let lastAttempt;
+    let lastOrder;
+    assert.equal(offer.available_keys, 3);
+    for (let i = 0; i < offer.available_keys; i++) {
+      lastAttempt = {request_id: randomUUID(), items: [{offer_id: offer.id, price_cents: offer.price_cents}]};
+      const result = await owner.call('checkout', lastAttempt);
+      assert.equal(result.status, 201);
+      assert.deepEqual(Object.keys(result.data), ['order_id']);
+      lastOrder = result.data.order_id;
+    }
+    const retry = await owner.call('checkout', lastAttempt);
+    assert.equal(retry.status, 200);
+    assert.equal(retry.data.order_id, lastOrder);
+    assert.equal((await publicData('offers/' + offer.id)).available_keys, 0);
+    return lastOrder;
+  }
+
+  await sellOut(cheap);
+  const after = await ranked();
+  assert.equal(after[position(after)].price_cents, expensive.price_cents);
+  assert.ok(position(after) > position(before));
+  const orderId = await sellOut(expensive);
+  for (const sort of ['price_asc', 'price_desc']) {
+    const rows = await publicData('products?sort=' + sort);
+    assert.equal(rows.at(-1).id, product.id);
+    assert.equal(rows.at(-1).price_cents, null);
+  }
+  for (const endpoint of ['products?min_price=0', 'home/best-sellers', 'home/deals']) {
+    assert.ok(!(await publicData(endpoint)).some(row => row.id === product.id), endpoint);
+  }
+  for (const endpoint of ['home/banner', 'products/filters', path]) await publicData(endpoint);
+  const receiptPath = 'orders/' + orderId;
+  const guest = await fetch(first + '/api/' + receiptPath, {headers: {Accept: 'application/json'}});
+  assert.equal(guest.status, 401);
+  const denied = await observer.call(receiptPath);
+  assert.equal(denied.status, 404);
+  assert.ok(!JSON.stringify(denied.data).includes('DEMO-'));
+  assert.deepEqual((await observer.call('orders')).data, []);
+  const history = (await owner.call('orders')).data;
+  assert.equal(history.length, 6);
+  assert.ok(!JSON.stringify(history).includes('DEMO-'));
+  const codes = new Set();
+  for (const order of history) {
+    const receipt = await owner.call('orders/' + order.id);
+    assert.equal(receipt.status, 200);
+    const code = receipt.data.items[0].code;
+    assert.ok(/^DEMO-[a-f0-9]{32}$/.test(code));
+    codes.add(code);
+  }
+  assert.equal(codes.size, history.length);
+});

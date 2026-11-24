@@ -6,7 +6,7 @@ import { fileURLToPath } from 'node:url';
 const output = fileURLToPath(new URL('../AI_CHAT_HISTORY.md', import.meta.url));
 const thread = '01a2080b-f173-7f03-b350-1687d7a352c0';
 const internalItems = new Set(['CommandExecution', 'McpToolCall', 'Reasoning',
-  'FileChange', 'WebSearch', 'ImageView']);
+  'FileChange', 'WebSearch', 'ImageView', 'ContextCompaction']);
 const questionTools = new Set(['request_user_input', 'request_user_input_async']);
 const internalExtensions = new Set(['web.search', 'clock.sleep']);
 
