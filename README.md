@@ -2,6 +2,8 @@
 
 A game-key marketplace built in stages. Visitors can compare seller offers, save a cart, and sign in to make a simulated purchase. Each receipt contains the purchased demo keys and is accessible from the buyer's order history.
 
+The homepage loads its banner, best sellers, and deals from three endpoints. Search and filters share the catalog URL. Prices reflect the cheapest in-stock offer for each product, and deals compare that price with the demo catalog's reference price.
+
 ## Run the first page
 
 Use PHP 8.4 with PDO PostgreSQL and the Laravel-required extensions, Composer 2, PostgreSQL, Node 24, and pnpm 11.25.0.
@@ -20,6 +22,10 @@ Open the public address in a private window. Change the seeded product's name in
 ## Verify authentication
 
 With the app running, set `STORE_TEST_URL` to its base URL and run `node --test scripts/auth.test.mjs`. This HTTP test registers one generated `@example.test` account, exercises cookie sessions and CSRF protection, and verifies direct checkout access. It prints the disposable account email for cleanup.
+
+## Verify the catalog
+
+With the app running, set `STORE_TEST_URL` to its base URL and run `node --test scripts/catalog.test.mjs` to verify the homepage feeds, partial and typo search, filters, and price sorting.
 
 ## Verify checkout
 

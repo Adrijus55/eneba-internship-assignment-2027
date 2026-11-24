@@ -1,6 +1,8 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { createRoot } from 'react-dom/client';
 import './store.css';
+import { Catalog, Home, Search } from './catalog';
+import { readJson, useData } from './data';
 import { AccountForm, AccountMenu } from './account';
 import { euros, Orders, Payment } from './orders';
 
@@ -13,16 +15,10 @@ type Offer = {
   price_cents: number;
   available_keys: number;
 };
-type ProductDetails = Product & { description: string; offers: Offer[] };
+type ProductDetails = Product & { description: string; platform: string; region: string; offers: Offer[] };
 type CartOffer = { id: number; offer: Offer | null };
 
 const cartKey = 'eneba-cart-offer-ids';
-
-async function readJson<T>(url: string, signal: AbortSignal): Promise<T> {
-  const response = await fetch(url, { signal, headers: { Accept: 'application/json' } });
-  if (!response.ok) throw new Error(response.status === 404 ? 'This item could not be found.' : 'Could not load data. Refresh to try again.');
-  return response.json();
-}
 
 function loadCart(): number[] {
   try {
@@ -34,41 +30,6 @@ function loadCart(): number[] {
   }
 }
 
-function useData<T>(load: (signal: AbortSignal) => Promise<T>, dependencies: readonly unknown[]) {
-  const [data, setData] = useState<T>();
-  const [error, setError] = useState('');
-
-  useEffect(() => {
-    const controller = new AbortController();
-    load(controller.signal).then(result => {
-      if (!controller.signal.aborted) {
-        setData(result);
-        setError('');
-      }
-    }).catch((failure: Error) => {
-      if (!controller.signal.aborted) setError(failure.message);
-    });
-    return () => controller.abort();
-  }, dependencies);
-
-  return { data, error };
-}
-
-function Catalog() {
-  const { data: products, error } = useData(signal => readJson<Product[]>('/api/products', signal), []);
-  return <>
-    <h1>Game store</h1>
-    {error && <p role="alert">{error}</p>}
-    {!products && !error && <p role="status">Loading games…</p>}
-    {products?.length === 0 && <p>No games are available yet.</p>}
-    {products && <ul className="catalog">
-      {products.map(product => <li key={product.id}>
-        <a href={'/products/' + product.id}>{product.name}</a>
-      </li>)}
-    </ul>}
-  </>;
-}
-
 function Details({ id, cart, add }: { id: string; cart: number[]; add: (id: number) => void }) {
   const { data: product, error } = useData(signal => readJson<ProductDetails>('/api/products/' + id, signal), [id]);
   if (error) return <p role="alert">{error}</p>;
@@ -76,6 +37,7 @@ function Details({ id, cart, add }: { id: string; cart: number[]; add: (id: numb
 
   return <>
     <h1>{product.name}</h1>
+    <p className="product-meta">{product.platform} · {product.region}</p>
     <p>{product.description}</p>
     <h2>Seller offers</h2>
     {product.offers.length === 0 && <p>No seller offers yet.</p>}
@@ -143,7 +105,9 @@ function Store() {
 
   return <main>
     <nav aria-label="Store">
-      <a href="/">Catalog</a>
+      <a className="store-brand" href="/">Indie Relay</a>
+      <Search />
+      <a href="/catalog">Catalog</a>
       <a href="/cart">Cart ({ids.length})</a>
       <AccountMenu />
     </nav>
@@ -155,7 +119,8 @@ function Store() {
     {isAccount && <AccountForm register={path === '/register'} />}
     {path === '/checkout' && <Cart ids={ids} checkout remove={() => {}} />}
     {(path === '/orders' || path.startsWith('/orders/')) && <Orders id={path.split('/')[2]} />}
-    {path === '' && <Catalog />}
+    {path === '' && <Home />}
+    {path === '/catalog' && <Catalog />}
   </main>;
 }
 
