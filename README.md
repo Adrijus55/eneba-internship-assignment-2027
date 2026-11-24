@@ -1,37 +1,81 @@
-# Eneba Internship Assignment 2027
+# Indie Relay
 
-A game-key marketplace built in stages. Visitors can compare seller offers, save a cart, and sign in to make a simulated purchase. Each receipt contains the purchased demo keys and is accessible from the buyer's order history.
+Indie Relay is a game-key marketplace built for the Eneba 2027 Software Engineer Internship assignment. Choose a game, compare two sellers, and buy a demo key with a simulated payment. You can sign out, return later, and open the same key in your order history.
 
-The homepage loads its banner, best sellers, and deals from three endpoints. Search and filters share the catalog URL. Prices reflect the cheapest in-stock offer for each product, and deals compare that price with the demo catalog's reference price.
+[Open the live store](https://eneba-internship-assignment-2027.onrender.com/) · [Browse the catalog](https://eneba-internship-assignment-2027.onrender.com/catalog)
 
-## Run the first page
+## Try the buyer journey
 
-Use PHP 8.4 with PDO PostgreSQL and the Laravel-required extensions, Composer 2, PostgreSQL, Node 24, and pnpm 11.25.0.
+1. Search for `oribt cour` from any page to find **Orbit Courier**. Filter by platform, region, or price and sort by price.
+2. Open a game and choose an in-stock seller. The cart remembers the specific offer and its seller when you refresh.
+3. Proceed to checkout. As a guest, you can create an account or sign in and keep your cart.
+4. Select **Confirm simulated purchase**. The receipt shows the game, seller, price, and demo key. Sign back in and open **Order history** to retrieve it again.
 
-1. Run `composer install` in the repository root. Copy `.env.example` to `.env`, configure a dedicated PostgreSQL database, and run `php artisan key:generate`.
-2. Run `php artisan migrate`. The first migration creates the products table and inserts one demo game.
-3. Run `pnpm --dir frontend install --frozen-lockfile` and `pnpm --dir frontend run build`.
-4. Run `php artisan serve` and open the displayed local address. Compare the product shown there with the JSON at `/api/products`.
+The catalog starts with eight fictional games, two offers per game, and three keys per offer. Every completed purchase uses one key per selected offer. The public demo has a finite stock of keys and uses no real payment details.
 
-## Deploy and verify
+## Architecture
 
-Use the repository's Render Blueprint with the free plan. In Render's secret settings, enter a fresh Laravel `APP_KEY` and the Neon PostgreSQL connection string as `DB_URL`, including its TLS query parameters. The container runs pending migrations at startup.
+React 19 and TypeScript render the storefront. Vite builds it into `public/build`. Laravel 13 serves the frontend and the JSON REST API from one origin, so the browser can use Laravel session cookies for account and order requests. PostgreSQL stores the catalog, inventory, users, and purchases.
 
-Open the public address in a private window. Change the seeded product's name in the dedicated Neon database, refresh the browser and check the displayed name. Restore the demo name after the check.
+| Area | How it works | Source |
+| --- | --- | --- |
+| Homepage | Three separate endpoints supply the promotion, best sellers ranked by completed sales, and deals ranked by savings against a reference price. | [StorefrontController](app/Http/Controllers/StorefrontController.php) |
+| Catalog and search | The “From” price is the lowest offer with an unsold key. Sold-out games stay browsable and sort last. Search matches partial words and tolerates a single edit or adjacent letter swap in longer terms. | [Catalog queries](app/Queries/Catalog.php) · [ProductController](app/Http/Controllers/ProductController.php) |
+| Seller selection | A product identifies the game. An offer links that game to a seller, a price in integer cents, and its own keys. The cart stores offer IDs in browser local storage and reloads the offers from Laravel. | [Migrations](database/migrations) · [Cart and product views](frontend/src/main.tsx) |
+| Accounts | Laravel hashes passwords, regenerates the session on sign-in, checks CSRF tokens for state changes, and requires a signed-in user for checkout and order history. | [SessionController](app/Http/Controllers/SessionController.php) · [Web routes](routes/web.php) |
+| Checkout and delivery | Laravel takes the buyer from the session, checks the current price, locks offers and available keys, then writes the order and marks the keys sold in one transaction. A failed cart leaves inventory intact. Receipt queries include the buyer’s ID. | [OrderController](app/Http/Controllers/OrderController.php) |
 
-## Verify authentication
+For example, if the server sells the last key and the browser loses the confirmation response, the browser can retry with the same request ID. Laravel first checks for that buyer’s committed order and returns the original receipt. PostgreSQL locks protect the last key when different buyers compete for it. [Browser purchase flow](frontend/src/orders.tsx)
 
-With the app running, set `STORE_TEST_URL` to its base URL and run `node --test scripts/auth.test.mjs`. This HTTP test registers one generated `@example.test` account, exercises cookie sessions and CSRF protection, and verifies direct checkout access. It prints the disposable account email for cleanup.
+## Run locally
 
-## Verify the catalog
+Use PHP 8.4 with Laravel’s required extensions and PDO PostgreSQL, Composer 2, PostgreSQL (tested with 17), Node.js 24, and pnpm 11.25.0. Run the commands from the repository root.
 
-With the app running, set `STORE_TEST_URL` to its base URL and run `node --test scripts/catalog.test.mjs` to verify the homepage feeds, partial and typo search, filters, and price sorting.
+1. Create an empty PostgreSQL database owned by your local application user. Copy `.env.example` to `.env` and set `DB_HOST`, `DB_PORT`, `DB_DATABASE`, `DB_USERNAME`, and `DB_PASSWORD` for that database.
+2. Install dependencies, generate the local application key, and run the migrations. The migrations also populate the demo catalog and inventory.
 
-## Verify checkout
+   ```sh
+   composer install
+   php artisan key:generate
+   php artisan migrate
+   ```
 
-Run two PHP workers on different ports against the same freshly migrated disposable PostgreSQL database. Set `CHECKOUT_TEST_URL` and `CHECKOUT_TEST_SECOND_URL` to their base URLs and run `node --test scripts/checkout.test.mjs`. This test consumes demo stock and covers simultaneous retries, competition for the last key, rollback, price changes, and private receipts.
+3. Build the frontend and start Laravel.
 
-## Export this assignment chat
+   ```sh
+   pnpm --dir frontend install --frozen-lockfile
+   pnpm --dir frontend run build
+   php artisan serve
+   ```
 
+4. Open the local address printed by Laravel. The homepage should show a promotion and two product sections. Rebuild the frontend after editing its source.
 
-From the repository root, run `node scripts/export-chat.mjs "path/to/assignment-session.jsonl"` with Node 22 or later. Use `--finish-turn` as the last argument during an active turn to refresh the export when that turn ends. The script checks the source chat ID and saves `AI_CHAT_HISTORY.md` locally. An unknown completed item stops the export for review. Review the full private file for sensitive content before providing the transcript to the evaluator.
+## Deployment
+
+The public store runs on a free Render Docker web service backed by Neon PostgreSQL. The Docker build compiles the React frontend, installs PHP dependencies, and serves the result with Apache. On startup it applies pending migrations to the configured database. The health endpoint is `/up`. [Dockerfile](Dockerfile) · [Render Blueprint](render.yaml)
+
+To deploy your own copy, create a Neon PostgreSQL database and a Render service from the Blueprint. Set `DB_URL` in Render’s secret settings to the database connection string with TLS enabled. Generate a separate production `APP_KEY` with `php artisan key:generate --show` and enter it directly in Render’s settings. Keep that value stable across deployments. The production configuration uses HTTPS, secure cookies, and disabled debug output. File-backed sessions can expire on a service restart. Purchases persist in PostgreSQL.
+
+## Automated tests
+
+The suite uses Node’s test runner, two local PHP workers for concurrent requests, and Playwright with Google Chrome for the browser journey. Use a **fresh, disposable local PostgreSQL database** for each complete run because the tests buy keys until offers sell out.
+
+1. Build the frontend as above. Point both local workers at the same empty test database and application key. In PowerShell, set `$env:DB_DATABASE` to the name of that database in **each** worker terminal. Keep the other local connection settings from `.env`.
+2. Run `php artisan migrate` once against the test database. In separate terminals run `php artisan serve --no-reload --host=127.0.0.1 --port=8001` and `php artisan serve --no-reload --host=127.0.0.1 --port=8002`. The `--no-reload` option passes each terminal’s test database setting through to the PHP worker.
+3. Install Google Chrome and make Playwright available to Node. For an isolated test-only installation, run `npm install --prefix .local/browser-tools --no-save playwright`.
+4. In a third terminal run the following PowerShell commands. All six tests should execute, with zero skipped.
+
+   ```powershell
+   $env:NODE_PATH = (Resolve-Path .local/browser-tools/node_modules).Path
+   $env:STORE_TEST_URL = 'http://127.0.0.1:8001'
+   $env:CHECKOUT_TEST_URL = $env:STORE_TEST_URL
+   $env:CHECKOUT_TEST_SECOND_URL = 'http://127.0.0.1:8002'
+   $env:BROWSER_TEST_URL = $env:STORE_TEST_URL
+   node --test --test-concurrency=1 scripts/auth.test.mjs scripts/catalog.test.mjs scripts/checkout.test.mjs scripts/export-chat.test.mjs scripts/storefront-browser.test.cjs
+   ```
+
+The tests cover registration, sessions and CSRF, homepage feeds, search and filters, seller-specific stock, concurrent purchases, retries, rollback, receipt privacy, and transcript export. The Chrome test also exercises guest cart persistence, two checkout tabs, a lost confirmation response, and receipt recovery after a fresh sign-in.
+
+## Assignment conversation
+
+The full Markdown transcript accompanies the submission as a separate attachment. To refresh the private export from the original assignment chat, run `node scripts/export-chat.mjs "<assignment-session.jsonl>"`. During an active turn, append `--finish-turn` to capture its final reply. The exporter checks the chat ID and reports unfamiliar message types. The transcript, raw session log, and local environment settings are excluded from Git.
