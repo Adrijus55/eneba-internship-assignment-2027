@@ -16,7 +16,7 @@ type Offer = {
   price_cents: number;
   available_keys: number;
 };
-type ProductDetails = Product & { description: string; platform: string; region: string; offers: Offer[] };
+type ProductDetails = Product & { artwork: string; description: string; platform: string; region: string; offers: Offer[] };
 type CartOffer = { id: number; offer: Offer | null };
 
 function Details({ id, cart, add }: { id: string; cart: number[]; add: (id: number) => void }) {
@@ -24,22 +24,33 @@ function Details({ id, cart, add }: { id: string; cart: number[]; add: (id: numb
   if (error) return <p role="alert">{error}</p>;
   if (!product) return <p role="status">Loading game…</p>;
 
-  return <>
-    <h1>{product.name}</h1>
-    <p className="product-meta">{product.platform} · {product.region}</p>
-    <p>{product.description}</p>
-    <h2>Seller offers</h2>
-    {product.offers.length === 0 && <p>No seller offers yet.</p>}
-    <ul>
-      {product.offers.map(offer => <li className="offer" key={offer.id}>
-        <div><strong>{offer.seller_name}</strong><br />{offer.available_keys} available</div>
-        <span>{euros.format(offer.price_cents / 100)}</span>
-        <button disabled={offer.available_keys === 0 || cart.includes(offer.id)} onClick={() => add(offer.id)}>
-          {cart.includes(offer.id) ? 'In cart' : offer.available_keys === 0 ? 'Sold out' : 'Add to cart'}
-        </button>
-      </li>)}
-    </ul>
-  </>;
+  return <article className="product-page">
+    <a className="catalog-back" href="/catalog"><span aria-hidden="true">← </span>Back to catalog</a>
+    <div className="product-layout">
+      <div className="cover product-cover" data-art={product.artwork} aria-hidden="true" />
+      <div className="product-info">
+        <h1>{product.name}</h1>
+        <p>{product.description}</p>
+        <dl className="product-specs">
+          <div><dt>Platform</dt><dd>{product.platform}</dd></div>
+          <div><dt>Region</dt><dd>{product.region}</dd></div>
+        </dl>
+        <section className="seller-offers">
+          <h2>Seller offers</h2>
+          {product.offers.length === 0 && <p>No seller offers yet.</p>}
+          <ul>
+            {product.offers.map(offer => <li className="seller-row" key={offer.id}>
+              <div><strong>{offer.seller_name}</strong><small>{offer.available_keys} available</small></div>
+              <span className="offer-price">{euros.format(offer.price_cents / 100)}</span>
+              <button disabled={offer.available_keys === 0 || cart.includes(offer.id)} onClick={() => add(offer.id)}>
+                {cart.includes(offer.id) ? 'In cart' : offer.available_keys === 0 ? 'Sold out' : 'Add to cart'}
+              </button>
+            </li>)}
+          </ul>
+        </section>
+      </div>
+    </div>
+  </article>;
 }
 
 function Cart({ ids, remove, checkout = false }: { ids: number[]; remove: (id: number) => void; checkout?: boolean }) {
@@ -64,12 +75,12 @@ function Cart({ ids, remove, checkout = false }: { ids: number[]; remove: (id: n
           <br />{offer.seller_name}{offer.available_keys === 0 && ' · Sold out'}
         </> : 'This offer is no longer available.'}</div>
         {offer && <span>{euros.format(offer.price_cents / 100)}</span>}
-        {!checkout && <button onClick={() => remove(id)}>Remove</button>}
+        {!checkout && <button className="cart-remove" onClick={() => remove(id)}>Remove</button>}
       </li>)}
     </ul>}
     {ready && !available && <p>Remove unavailable offers from <a href="/cart">your cart</a> to continue.
       {' '}Already confirmed a purchase? <a href="/orders">View order history</a>.</p>}
-    {ready && !checkout && available && <a href="/checkout">Checkout</a>}
+    {ready && !checkout && available && <div className="cart-actions"><a className="cart-checkout" href="/checkout">Checkout</a></div>}
     {ready && checkout && selections.every(row => row.offer) &&
       <Payment key={ids.join(',')} available={!!available}
         items={selections.map(({ offer }) => ({ offer_id: offer!.id, price_cents: offer!.price_cents }))} />}

@@ -70,8 +70,8 @@ export function AccountForm({ register }: { register: boolean }) {
   }
 
   const title = register ? 'Create account' : 'Sign in';
-  return <>
-    <h1>{title}</h1>
+  return <section className="account-card" aria-labelledby="account-title">
+    <h1 id="account-title">{title}</h1>
     <form className="account-form" onSubmit={submit}>
       <label>Email<input name="email" type="email" autoComplete="email" required /></label>
       <label>Password<input name="password" type="password" autoComplete={register ? 'new-password' : 'current-password'}
@@ -84,5 +84,5 @@ export function AccountForm({ register }: { register: boolean }) {
       <button disabled={busy}>{title}</button>
       <a href={register ? '/login' : '/register'}>{register ? 'Sign in instead' : 'Create an account'}</a>
     </form>
-  </>;
+  </section>;
 }
